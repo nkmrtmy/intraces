@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DVD ARCHIVE 上传器（网页版）</title>
+<style>
+  :root {
+    --bg: #14100c; --card: #201a15; --ink: #ede6d6; --ink-dim: #a99a86;
+    --accent: #b8935a; --ok: #7fcf9f; --err: #d97b6c; --border: #382e24;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Noto Sans SC", sans-serif;
+    padding: 40px 24px 100px; max-width: 760px; margin-inline: auto;
+  }
+  h1 { font-size: 20px; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .sub { color: var(--ink-dim); font-size: 13px; margin-bottom: 28px; }
+  .panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 20px 22px; margin-bottom: 20px;
+  }
+  .panel h2 { font-size: 14px; margin: 0 0 14px; color: var(--accent); letter-spacing: 0.05em; }
+  label { display: block; font-size: 12.5px; color: var(--ink-dim); margin: 12px 0 5px; }
+  input[type=text], input[type=number], textarea {
+    width: 100%; background: #0f0c09; border: 1px solid var(--border); color: var(--ink);
+    border-radius: 4px; padding: 9px 11px; font-size: 13.5px; font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+  .row2 { display: flex; gap: 14px; }
+  .row2 > div { flex: 1; }
+  button {
+    background: #33291d; color: var(--ink); border: 1px solid var(--border);
+    padding: 9px 16px; border-radius: 4px; font-size: 13px; cursor: pointer;
+  }
+  button:hover { background: #40331f; }
+  button.primary { background: var(--accent); color: #14100c; font-weight: 700; border: none; }
+  button.primary:hover { background: #c9a56b; }
+  button.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.ghost { background: none; }
+  .file-row { display: flex; align-items: center; gap: 10px; }
+  .file-name { font-size: 12px; color: var(--ink-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status { font-size: 12.5px; padding: 10px 12px; border-radius: 4px; margin-bottom: 16px; display: none; }
+  .status.show { display: block; }
+  .status.ok { background: rgba(127,207,159,0.12); color: var(--ok); border: 1px solid rgba(127,207,159,0.3); }
+  .status.err { background: rgba(217,123,108,0.12); color: var(--err); border: 1px solid rgba(217,123,108,0.3); }
+  .iv-list { margin-top: 12px; }
+  .iv-item {
+    background: #0f0c09; border: 1px solid var(--border); border-radius: 4px;
+    padding: 10px 12px; margin-bottom: 8px; font-size: 12.5px;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .iv-item span { color: var(--ink-dim); }
+  .hint { font-size: 11.5px; color: var(--ink-dim); line-height: 1.6; margin-top: 4px; }
+  .folder-name { color: var(--accent); font-weight: 600; }
+  .divider { height: 1px; background: var(--border); margin: 18px 0; }
+
+  /* ---------- 碟片裁剪器 ---------- */
+  .cropper-modal {
+    position: fixed; inset: 0; z-index: 500;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.75);
+  }
+  .cropper-modal.open { display: flex; }
+  .cropper-box {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 24px; width: 420px; text-align: center;
+  }
+  .cropper-box h3 { margin: 0 0 4px; font-size: 15px; }
+  .cropper-hint { font-size: 11.5px; color: var(--ink-dim); margin-bottom: 14px; }
+  .cropper-canvas-wrap {
+    width: 300px; height: 300px; margin: 0 auto 16px;
+    border-radius: 50%; overflow: hidden; position: relative;
+    background: repeating-conic-gradient(#2a2620 0% 25%, #221f19 0% 50%) 50% / 20px 20px;
+    cursor: grab; touch-action: none;
+  }
+  .cropper-canvas-wrap:active { cursor: grabbing; }
+  .cropper-canvas-wrap canvas { position: absolute; top: 0; left: 0; width: 300px; height: 300px; }
+  .cropper-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .cropper-controls input[type=range] { flex: 1; }
+  .cropper-actions { display: flex; justify-content: center; gap: 10px; }
+  .thumb-preview {
+    width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+    border: 1px solid var(--border); flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>DVD ARCHIVE 上传器（网页版）</h1>
+<div class="sub">用 Chrome 打开，选一次项目文件夹后即可直接写入图片和数据，不需要安装任何东西。</div>
+
+<div id="statusBox" class="status"></div>
+
+<div class="panel">
+  <h2>第一步：选择项目文件夹</h2>
+  <button id="pickFolderBtn">选择 dvd-shelf 项目文件夹…</button>
+  <div class="hint" id="folderInfo">尚未选择文件夹。请选择包含 index.html 的那个 dvd-shelf 文件夹本身。</div>
+</div>
+
+<div class="panel" id="formPanel" style="display:none;">
+  <h2>新增作品</h2>
+
+  <label>剧名 *</label>
+  <input type="text" id="title">
+
+  <div class="row2">
+    <div>
+      <label>角色名（选填）</label>
+      <input type="text" id="role">
+    </div>
+    <div>
+      <label>年份 *</label>
+      <input type="number" id="year" placeholder="2024">
+    </div>
+  </div>
+
+  <label>碟片图片 *（拨选界面显示的圆形图，选择后可拖动缩放取景）</label>
+  <div class="file-row">
+    <button id="discPickBtn" type="button">选择文件…</button>
+    <img id="discThumb" class="thumb-preview" style="display:none;">
+    <span class="file-name" id="discFileName">未选择</span>
+  </div>
+
+  <label>背景大图（选填，不选则用碟片图代替）</label>
+  <div class="file-row">
+    <button id="coverPickBtn" type="button">选择文件…</button>
+    <img id="coverThumb" class="thumb-preview" style="display:none; border-radius: 4px;">
+    <span class="file-name" id="coverFileName">未选择</span>
+  </div>
+
+  <div class="divider"></div>
+
+  <h2>添加一条采访（可不填，之后再补）</h2>
+  <label>采访标题</label>
+  <input type="text" id="ivTitle">
+
+  <div class="row2">
+    <div>
+      <label>日期</label>
+      <input type="text" id="ivDate" placeholder="2024-05-01">
+    </div>
+    <div>
+      <label>来源</label>
+      <input type="text" id="ivSource" placeholder="杂志 / 网站名">
+    </div>
+  </div>
+
+  <label>链接 URL</label>
+  <input type="text" id="ivUrl" placeholder="https://...">
+
+  <div class="row2">
+    <div>
+      <label>日语原文（每段换行）</label>
+      <textarea id="ivJa"></textarea>
+    </div>
+    <div>
+      <label>中文翻译（每段换行，与左边一一对应）</label>
+      <textarea id="ivZh"></textarea>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;">
+    <button id="addInterviewBtn" type="button">＋ 添加这条采访到列表</button>
+  </div>
+
+  <div class="iv-list" id="ivList"></div>
+
+  <div class="divider"></div>
+
+  <button class="primary" id="submitBtn" disabled>提交，写入网站数据</button>
+</div>
+
+<div class="cropper-modal" id="cropperModal">
+  <div class="cropper-box">
+    <h3>调整碟片取景</h3>
+    <div class="cropper-hint">拖动图片调整位置，滑块调整缩放，中间的孔位置固定不动</div>
+    <div class="cropper-canvas-wrap" id="cropperWrap">
+      <canvas id="cropperCanvas" width="600" height="600"></canvas>
+    </div>
+    <div class="cropper-controls">
+      <span style="font-size:11px;color:var(--ink-dim);">缩放</span>
+      <input type="range" id="cropperZoom" min="100" max="400" value="100">
+    </div>
+    <div class="cropper-actions">
+      <button type="button" id="cropperCancel">取消</button>
+      <button type="button" class="primary" id="cropperConfirm">确认使用</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let rootHandle = null;
+let dvdsData = null;
+let discFile = null;
+let coverFile = null;
+let interviews = [];
+
+const statusBox = document.getElementById("statusBox");
+function showStatus(msg, ok = true) {
+  statusBox.textContent = msg;
+  statusBox.className = "status show " + (ok ? "ok" : "err");
+}
+
+// ---------- 选择项目文件夹 ----------
+document.getElementById("pickFolderBtn").addEventListener("click", async () => {
+  try {
+    rootHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+    const dataDir = await rootHandle.getDirectoryHandle("data");
+    const fileHandle = await dataDir.getFileHandle("dvds.json");
+    const file = await fileHandle.getFile();
+    dvdsData = JSON.parse(await file.text());
+
+    document.getElementById("folderInfo").innerHTML =
+      `已连接文件夹：<span class="folder-name">${rootHandle.name}</span>　·　当前已有 ${dvdsData.length} 部作品`;
+    document.getElementById("formPanel").style.display = "block";
+    document.getElementById("submitBtn").disabled = false;
+    showStatus("文件夹连接成功，可以开始填写了。", true);
+  } catch (e) {
+    if (e.name !== "AbortError") {
+      showStatus("选择文件夹失败：" + e.message + "（请确认选的是 dvd-shelf 文件夹本身，且里面有 data/dvds.json）", false);
+    }
+  }
+});
+
+// ---------- 选择图片 ----------
+async function pickImageFile() {
+  const [handle] = await window.showOpenFilePicker({
+    types: [{ description: "图片", accept: { "image/*": [".png", ".jpg", ".jpeg", ".webp"] } }],
+  });
+  return await handle.getFile();
+}
+
+document.getElementById("discPickBtn").addEventListener("click", async () => {
+  try {
+    const file = await pickImageFile();
+    openCropper(file);
+  } catch (e) { /* 用户取消选择，忽略 */ }
+});
+
+document.getElementById("coverPickBtn").addEventListener("click", async () => {
+  try {
+    coverFile = await pickImageFile();
+    document.getElementById("coverFileName").textContent = coverFile.name;
+    const thumb = document.getElementById("coverThumb");
+    thumb.src = URL.createObjectURL(coverFile);
+    thumb.style.display = "inline-block";
+  } catch (e) { /* 用户取消选择，忽略 */ }
+});
+
+// ---------- 碟片裁剪器 ----------
+const cropperModal = document.getElementById("cropperModal");
+const cropperCanvas = document.getElementById("cropperCanvas");
+const cropperCtx = cropperCanvas.getContext("2d");
+const cropperWrap = document.getElementById("cropperWrap");
+const cropperZoomInput = document.getElementById("cropperZoom");
+
+const CROP_SIZE = 600;      // 画布内部分辨率
+const CROP_HOLE_R = 46;     // 碟孔半径（与网站前端的比例保持一致）
+
+let cropperImg = null;
+let cropperBaseScale = 1;
+let cropperZoom = 100;      // 百分比，100 = 刚好覆盖整圆
+let cropperOffsetX = 0;
+let cropperOffsetY = 0;
+let cropperDragging = false;
+let cropperDragStart = null;
+
+function openCropper(file) {
+  const img = new Image();
+  img.onload = () => {
+    cropperImg = img;
+    cropperBaseScale = Math.max(CROP_SIZE / img.width, CROP_SIZE / img.height);
+    cropperZoom = 100;
+    cropperOffsetX = 0;
+    cropperOffsetY = 0;
+    cropperZoomInput.value = 100;
+    drawCropper();
+    cropperModal.classList.add("open");
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+function clamp(v, lo, hi) {
+  return Math.min(hi, Math.max(lo, v));
+}
+
+function clampCropperOffsets() {
+  const scale = cropperBaseScale * (cropperZoom / 100);
+  const dw = cropperImg.width * scale;
+  const dh = cropperImg.height * scale;
+  const lowX = CROP_SIZE / 2 - dw / 2;
+  const highX = dw / 2 - CROP_SIZE / 2;
+  const lowY = CROP_SIZE / 2 - dh / 2;
+  const highY = dh / 2 - CROP_SIZE / 2;
+  cropperOffsetX = clamp(cropperOffsetX, lowX, highX);
+  cropperOffsetY = clamp(cropperOffsetY, lowY, highY);
+}
+
+function drawCropper() {
+  if (!cropperImg) return;
+  clampCropperOffsets();
+  const ctx = cropperCtx;
+  ctx.clearRect(0, 0, CROP_SIZE, CROP_SIZE);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2, 0, Math.PI * 2);
+  ctx.clip();
+
+  const scale = cropperBaseScale * (cropperZoom / 100);
+  const dw = cropperImg.width * scale;
+  const dh = cropperImg.height * scale;
+  const dx = CROP_SIZE / 2 - dw / 2 + cropperOffsetX;
+  const dy = CROP_SIZE / 2 - dh / 2 + cropperOffsetY;
+  ctx.drawImage(cropperImg, dx, dy, dw, dh);
+  ctx.restore();
+
+  // 挖出中间的碟孔（透明）
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.beginPath();
+  ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_HOLE_R, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+cropperZoomInput.addEventListener("input", () => {
+  cropperZoom = Number(cropperZoomInput.value);
+  drawCropper();
+});
+
+cropperWrap.addEventListener("pointerdown", (e) => {
+  cropperDragging = true;
+  cropperDragStart = { x: e.clientX, y: e.clientY, ox: cropperOffsetX, oy: cropperOffsetY };
+  cropperWrap.setPointerCapture(e.pointerId);
+});
+cropperWrap.addEventListener("pointermove", (e) => {
+  if (!cropperDragging) return;
+  const ratio = CROP_SIZE / cropperWrap.clientWidth; // 显示尺寸 -> 画布内部尺寸的换算
+  cropperOffsetX = cropperDragStart.ox + (e.clientX - cropperDragStart.x) * ratio;
+  cropperOffsetY = cropperDragStart.oy + (e.clientY - cropperDragStart.y) * ratio;
+  drawCropper();
+});
+["pointerup", "pointerleave", "pointercancel"].forEach((ev) => {
+  cropperWrap.addEventListener(ev, () => { cropperDragging = false; });
+});
+
+document.getElementById("cropperCancel").addEventListener("click", () => {
+  cropperModal.classList.remove("open");
+  cropperImg = null;
+});
+
+document.getElementById("cropperConfirm").addEventListener("click", () => {
+  cropperCanvas.toBlob((blob) => {
+    discFile = new File([blob], "disc.png", { type: "image/png" });
+    const thumb = document.getElementById("discThumb");
+    thumb.src = URL.createObjectURL(blob);
+    thumb.style.display = "inline-block";
+    document.getElementById("discFileName").textContent = "已裁剪（disc.png）";
+    cropperModal.classList.remove("open");
+    cropperImg = null;
+  }, "image/png");
+});
+
+// ---------- 采访列表 ----------
+document.getElementById("addInterviewBtn").addEventListener("click", () => {
+  const title = document.getElementById("ivTitle").value.trim();
+  const date = document.getElementById("ivDate").value.trim();
+  const source = document.getElementById("ivSource").value.trim();
+  const url = document.getElementById("ivUrl").value.trim();
+  const ja = document.getElementById("ivJa").value.replace(/\n+$/, "");
+  const zh = document.getElementById("ivZh").value.replace(/\n+$/, "");
+
+  if (!title && !ja && !zh) {
+    alert("至少填一个采访标题，或日语/中文内容，再添加。");
+    return;
+  }
+
+  interviews.push({ title, date, source, url, excerpt_ja: ja, excerpt_zh: zh });
+  renderIvList();
+
+  ["ivTitle", "ivDate", "ivSource", "ivUrl", "ivJa", "ivZh"].forEach(
+    (id) => (document.getElementById(id).value = "")
+  );
+});
+
+function renderIvList() {
+  const box = document.getElementById("ivList");
+  box.innerHTML = interviews.map((iv, i) => `
+    <div class="iv-item">
+      <span>${iv.date || "未填日期"} · ${iv.title || "（无标题）"}</span>
+      <button type="button" data-i="${i}" class="removeIvBtn ghost">删除</button>
+    </div>
+  `).join("");
+  box.querySelectorAll(".removeIvBtn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      interviews.splice(Number(btn.dataset.i), 1);
+      renderIvList();
+    });
+  });
+}
+
+// ---------- 工具函数 ----------
+function slugify(text, fallback) {
+  const ascii = text
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+  return ascii || fallback;
+}
+
+function uniqueId(base, existingIds) {
+  if (!existingIds.has(base)) return base;
+  let n = 2;
+  while (existingIds.has(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
+}
+
+async function getOrCreateDir(parent, name) {
+  return await parent.getDirectoryHandle(name, { create: true });
+}
+
+async function writeFile(dirHandle, filename, fileBlob) {
+  const fh = await dirHandle.getFileHandle(filename, { create: true });
+  const writable = await fh.createWritable();
+  await writable.write(fileBlob);
+  await writable.close();
+}
+
+function extOf(file, fallback) {
+  const m = file.name.match(/\.[a-zA-Z0-9]+$/);
+  return m ? m[0].toLowerCase() : fallback;
+}
+
+// ---------- 提交 ----------
+document.getElementById("submitBtn").addEventListener("click", async () => {
+  const title = document.getElementById("title").value.trim();
+  const role = document.getElementById("role").value.trim();
+  const yearRaw = document.getElementById("year").value.trim();
+
+  if (!title) return showStatus("请填写剧名。", false);
+  if (!yearRaw || isNaN(Number(yearRaw))) return showStatus("年份请填数字，比如 2024。", false);
+  if (!discFile) return showStatus("请选择一张碟片图片。", false);
+  if (!rootHandle || !dvdsData) return showStatus("请先选择项目文件夹。", false);
+
+  const year = Number(yearRaw);
+  const existingIds = new Set(dvdsData.map((d) => d.id));
+  const baseId = slugify(`${title}-${year}`, `item-${year}-${Date.now()}`);
+  const newId = uniqueId(baseId, existingIds);
+
+  try {
+    const imagesDir = await getOrCreateDir(rootHandle, "images");
+    const spinesDir = await getOrCreateDir(imagesDir, "spines");
+    const coversDir = await getOrCreateDir(imagesDir, "covers");
+
+    const discExt = extOf(discFile, ".png");
+    const discName = `${newId}${discExt}`;
+    await writeFile(spinesDir, discName, discFile);
+    const discRel = `images/spines/${discName}`;
+
+    let coverRel = discRel;
+    if (coverFile) {
+      const coverExt = extOf(coverFile, ".jpg");
+      const coverName = `${newId}${coverExt}`;
+      await writeFile(coversDir, coverName, coverFile);
+      coverRel = `images/covers/${coverName}`;
+    }
+
+    const newEntry = {
+      id: newId, title, role, year,
+      disc: discRel, cover: coverRel,
+      interviews: interviews,
+    };
+    dvdsData.push(newEntry);
+
+    const dataDir = await getOrCreateDir(rootHandle, "data");
+    const jsonFh = await dataDir.getFileHandle("dvds.json", { create: true });
+    const writable = await jsonFh.createWritable();
+    await writable.write(JSON.stringify(dvdsData, null, 2));
+    await writable.close();
+
+    showStatus(`已添加《${title}》（${year}），id: ${newId}，采访 ${interviews.length} 条。现在去终端 git add / commit / push 同步到网站即可。`, true);
+
+    // 重置表单，folder连接保留，可以连续添加下一部
+    document.getElementById("title").value = "";
+    document.getElementById("role").value = "";
+    document.getElementById("year").value = "";
+    discFile = null; coverFile = null;
+    document.getElementById("discFileName").textContent = "未选择";
+    document.getElementById("coverFileName").textContent = "未选择";
+    document.getElementById("discThumb").style.display = "none";
+    document.getElementById("coverThumb").style.display = "none";
+    interviews = [];
+    renderIvList();
+    document.getElementById("folderInfo").innerHTML =
+      `已连接文件夹：<span class="folder-name">${rootHandle.name}</span>　·　当前已有 ${dvdsData.length} 部作品`;
+  } catch (e) {
+    showStatus("提交失败：" + e.message, false);
+  }
+});
+</script>
+</body>
+</html>

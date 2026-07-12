@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DVD ARCHIVE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="geoBlock" class="geo-block-screen" style="display:none;">
+  <p>抱歉，此内容暂不对该地区开放。</p>
+</div>
+
+<div class="bg-layer bg-a" id="bgA"></div>
+<div class="bg-layer bg-b" id="bgB"></div>
+<div class="vignette"></div>
+<div class="scanlines"></div>
+<div class="grain"></div>
+
+<header class="top-bar">
+  <div class="brand">DVD ARCHIVE<span class="brand-dot">_</span></div>
+  <div class="search-glass">
+    <span class="search-prefix">search://</span>
+    <input type="text" id="searchInput" placeholder="标题 / 采访 / 关键词">
+  </div>
+  <div class="year-readout" id="yearReadout">----</div>
+</header>
+
+<main class="stage" id="stage">
+  <button class="nav-arrow nav-left" id="navLeft" aria-label="prev">‹</button>
+  <div class="disc-track" id="discTrack"></div>
+  <button class="nav-arrow nav-right" id="navRight" aria-label="next">›</button>
+</main>
+
+<div class="hint" id="hint">滚动 / 拖动 / ← → 拨选　·　点击中央碟片查看采访</div>
+
+<div class="transition-veil" id="transitionVeil">
+  <div class="veil-text" id="veilText"></div>
+</div>
+
+<div class="detail-view" id="detailView">
+  <button class="detail-close" id="detailClose">×</button>
+  <div class="detail-topleft">
+    <div class="detail-eyebrow">NOW VIEWING</div>
+    <h2 id="detailTitle"></h2>
+    <p id="detailRole"></p>
+  </div>
+  <div class="detail-bottomleft">
+    <div class="detail-eyebrow">INTERVIEWS</div>
+    <div id="detailInterviews" class="interview-list"></div>
+  </div>
+</div>
+
+<div class="search-overlay" id="searchOverlay"></div>
+
+<div class="interview-modal" id="interviewModal">
+  <div class="interview-modal-inner" id="interviewModalInner"></div>
+</div>
+
+<script src="js/geoblock.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
