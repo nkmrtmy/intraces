@@ -45,10 +45,10 @@
   .preview-disc img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .preview-hole {
     position: absolute; top: 50%; left: 50%;
-    width: 30%; height: 30%; margin: -15% 0 0 -15%;
+    width: 20%; height: 20%; margin: -10% 0 0 -10%;
     border-radius: 50%;
-    background: radial-gradient(circle, transparent 0% 50%, rgba(12,10,8,0.7) 51% 100%);
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.55);
+    background: radial-gradient(circle, transparent 0% 76%, rgba(10,8,6,0.72) 78% 100%);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
   }
   .preview-label {
     position: absolute;
@@ -62,8 +62,8 @@
   .preview-secondary { font-size: 7px; font-weight: 700; color: rgba(255,255,255,0.68); }
   .preview-label.pos-top { top: 11%; left: 50%; transform: translateX(-50%); text-align: center; max-width: 78%; }
   .preview-label.pos-bottom { bottom: 9%; top: auto; left: 50%; transform: translateX(-50%); text-align: center; max-width: 78%; }
-  .preview-label.pos-left { top: 50%; right: 57.5%; transform: translateY(-50%); text-align: right; max-width: 40%; }
-  .preview-label.pos-right { top: 50%; left: 57.5%; transform: translateY(-50%); text-align: left; max-width: 40%; }
+  .preview-label.pos-left { top: 50%; right: 60%; transform: translateY(-50%); text-align: right; max-width: 40%; }
+  .preview-label.pos-right { top: 50%; left: 60%; transform: translateY(-50%); text-align: left; max-width: 40%; }
   .row2 { display: flex; gap: 14px; }
   .row2 > div { flex: 1; }
   button {
@@ -242,7 +242,7 @@
 
     <div class="field-group" data-field="cover">
       <label class="field-check"><input type="checkbox" class="fieldToggle" checked><span>修改背景大图</span></label>
-      <label>背景大图（选填，不选则用碟片图代替）</label>
+      <label>背景大图（选填，不选则用碟片图代替；选择后会自动压缩+烘焙模糊，体积更小加载更快）</label>
       <div class="file-row">
         <button id="coverPickBtn" type="button">选择文件…</button>
         <img id="coverThumb" class="thumb-preview" style="display:none; border-radius: 4px;">
@@ -457,13 +457,52 @@ document.getElementById("discPickBtn").addEventListener("click", async () => {
 
 document.getElementById("coverPickBtn").addEventListener("click", async () => {
   try {
-    coverFile = await pickImageFile();
-    document.getElementById("coverFileName").textContent = coverFile.name;
+    const rawFile = await pickImageFile();
+    document.getElementById("coverFileName").textContent = "处理中…";
+    const processed = await processCoverImage(rawFile);
+    coverFile = processed;
+    const beforeKB = (rawFile.size / 1024).toFixed(0);
+    const afterKB = (processed.size / 1024).toFixed(0);
+    document.getElementById("coverFileName").textContent = `已处理（${beforeKB}KB → ${afterKB}KB）`;
     const thumb = document.getElementById("coverThumb");
-    thumb.src = URL.createObjectURL(coverFile);
+    thumb.src = URL.createObjectURL(processed);
     thumb.style.display = "inline-block";
   } catch (e) { /* 用户取消选择，忽略 */ }
 });
+
+// 背景大图预处理：缩到合理尺寸 + 烘焙5px模糊 + 转成JPEG压缩，
+// 网站展示时本来就是模糊的背景，没必要存一张又大又清晰的原图
+function loadImageEl(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function processCoverImage(file) {
+  const img = await loadImageEl(file);
+  const MAX_W = 1600;
+  const scale = Math.min(1, MAX_W / img.width);
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.filter = "blur(5px)";
+  ctx.drawImage(img, 0, 0, w, h);
+
+  return await new Promise((resolve) => {
+    canvas.toBlob(
+      (blob) => resolve(new File([blob], "cover.jpg", { type: "image/jpeg" })),
+      "image/jpeg",
+      0.82
+    );
+  });
+}
 
 // ---------- 碟片裁剪器 ----------
 const cropperModal = document.getElementById("cropperModal");
