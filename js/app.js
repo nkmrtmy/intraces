@@ -4,6 +4,7 @@ let activeBg = "A"; // which bg layer is currently visible
 
 const discTrack = document.getElementById("discTrack");
 const yearReadout = document.getElementById("yearReadout");
+const brandText = document.getElementById("brandText");
 const bgA = document.getElementById("bgA");
 const bgB = document.getElementById("bgB");
 
@@ -34,8 +35,9 @@ function buildDiscs() {
     item.appendChild(img);
 
     const label = document.createElement("div");
-    label.className = "disc-label";
-    label.innerHTML = `<div class="lt">${escapeHtml(dvd.title)}</div><div class="lr">${escapeHtml(dvd.role || "")}</div>`;
+    const pos = dvd.textPosition || "left";
+    label.className = `disc-label pos-${pos}`;
+    label.innerHTML = `<div class="label-primary">${escapeHtml(dvd.role || dvd.title)}</div><div class="label-secondary">${escapeHtml(dvd.role ? dvd.title : "")}</div>`;
     item.appendChild(label);
 
     item.addEventListener("click", () => {
@@ -84,6 +86,7 @@ function goTo(index, instant) {
   layout();
   updateBackground();
   yearReadout.textContent = DVDS[currentIndex] ? DVDS[currentIndex].year : "----";
+  brandText.textContent = DVDS[currentIndex] ? `ARCHIVE_#${DVDS[currentIndex].id}` : "ARCHIVE_#----";
 }
 
 function updateBackground() {
@@ -151,6 +154,7 @@ function openDetail(dvd) {
   veil.classList.add("show");
   stage.style.transition = "opacity 0.4s ease";
   stage.style.opacity = "0";
+  document.querySelector(".search-glass").style.display = "none";
 
   setTimeout(() => {
     renderDetail(dvd);
@@ -162,8 +166,8 @@ function openDetail(dvd) {
 }
 
 function renderDetail(dvd) {
-  document.getElementById("detailTitle").textContent = dvd.title;
-  document.getElementById("detailRole").textContent = dvd.role || "";
+  document.getElementById("detailTitle").textContent = dvd.role || dvd.title;
+  document.getElementById("detailRole").textContent = dvd.role ? dvd.title : "";
 
   const list = document.getElementById("detailInterviews");
   list.innerHTML = dvd.interviews && dvd.interviews.length
@@ -171,6 +175,7 @@ function renderDetail(dvd) {
         <div class="interview-list-item" data-idx="${i}">
           <div class="meta">${iv.date || ""}${iv.source ? " · " + escapeHtml(iv.source) : ""}</div>
           <div class="title">${escapeHtml(iv.title || "（无标题）")}</div>
+          ${iv.title_zh ? `<div class="title-zh">${escapeHtml(iv.title_zh)}</div>` : ""}
         </div>
       `).join("")
     : `<p class="no-interviews">暂无相关采访记录。</p>`;
@@ -191,6 +196,7 @@ function openInterviewModal(iv) {
     <button class="interview-modal-close" id="interviewModalClose">×</button>
     <div class="interview-modal-meta">${iv.date || ""}${iv.source ? " · " + escapeHtml(iv.source) : ""}</div>
     <h3 class="interview-modal-title">${escapeHtml(iv.title || "")}</h3>
+    ${iv.title_zh ? `<div class="interview-modal-title-zh">${escapeHtml(iv.title_zh)}</div>` : ""}
     ${renderExcerpt(iv)}
     ${iv.url ? `<a class="interview-modal-link" href="${iv.url}" target="_blank" rel="noopener">跳转至出处网站（外链） →</a>` : ""}
   `;
@@ -238,6 +244,7 @@ function closeDetail() {
   detailView.classList.remove("open");
   stage.style.opacity = "1";
   closeInterviewModal();
+  document.querySelector(".search-glass").style.display = "flex";
 }
 
 // ---------- 搜索 ----------
@@ -255,7 +262,7 @@ searchInput.addEventListener("input", () => {
   const matches = [];
   DVDS.forEach((dvd) => {
     (dvd.interviews || []).forEach((iv) => {
-      const haystack = [dvd.title, dvd.role, iv.title, iv.source, iv.excerpt, iv.excerpt_ja, iv.excerpt_zh]
+      const haystack = [dvd.title, dvd.role, iv.title, iv.title_zh, iv.source, iv.excerpt, iv.excerpt_ja, iv.excerpt_zh]
         .join(" ").toLowerCase();
       if (haystack.includes(q)) matches.push({ dvd, iv });
     });

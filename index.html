@@ -3,16 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DVD ARCHIVE</title>
+<title>nkmr_in_traces</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@300;400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="pre-reveal">
 
 <div id="geoBlock" class="geo-block-screen" style="display:none;">
   <p>抱歉，此内容暂不对该地区开放。</p>
 </div>
+
+<div id="introOverlay">
+  <div id="introHintText">CLICK THE SHELF TO ENTER</div>
+  <svg id="shelfSvg" viewBox="0 0 900 640" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+
+<div id="customCursor">
+  <svg viewBox="0 0 100 100">
+    <g class="wire">
+      <path d="M35 90 L35 45 Q35 38 41 38 Q47 38 47 45 L47 55" />
+      <path d="M47 55 L47 32 Q47 25 53 25 Q59 25 59 32 L59 55" />
+      <path d="M59 55 L59 30 Q59 23 65 23 Q71 23 71 30 L71 55" />
+      <path d="M71 55 L71 38 Q71 32 76 32 Q81 32 81 38 L81 62" />
+      <path d="M35 62 Q22 60 20 70 Q18 80 28 88 Q38 96 55 96 Q75 96 81 84 L81 62" />
+      <path d="M35 55 L81 55" />
+    </g>
+  </svg>
+</div>
+
+<div id="shatterLayer"></div>
 
 <div class="bg-layer bg-a" id="bgA"></div>
 <div class="bg-layer bg-b" id="bgB"></div>
@@ -21,10 +41,10 @@
 <div class="grain"></div>
 
 <header class="top-bar">
-  <div class="brand">DVD ARCHIVE<span class="brand-dot">_</span></div>
+  <div class="brand" id="brandText">ARCHIVE_#----</div>
   <div class="search-glass">
     <span class="search-prefix">search://</span>
-    <input type="text" id="searchInput" placeholder="标题 / 采访 / 关键词">
+    <input type="text" id="searchInput" placeholder="">
   </div>
   <div class="year-readout" id="yearReadout">----</div>
 </header>
@@ -34,8 +54,6 @@
   <div class="disc-track" id="discTrack"></div>
   <button class="nav-arrow nav-right" id="navRight" aria-label="next">›</button>
 </main>
-
-<div class="hint" id="hint">滚动 / 拖动 / ← → 拨选　·　点击中央碟片查看采访</div>
 
 <div class="transition-veil" id="transitionVeil">
   <div class="veil-text" id="veilText"></div>
@@ -61,6 +79,7 @@
 </div>
 
 <script src="js/geoblock.js"></script>
+<script src="js/intro.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

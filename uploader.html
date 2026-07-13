@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DVD ARCHIVE 上传器（网页版）</title>
+<title>nkmr_in_traces 上传器</title>
 <style>
   :root {
     --bg: #14100c; --card: #201a15; --ink: #ede6d6; --ink-dim: #a99a86;
@@ -27,7 +27,43 @@
     width: 100%; background: #0f0c09; border: 1px solid var(--border); color: var(--ink);
     border-radius: 4px; padding: 9px 11px; font-size: 13.5px; font-family: inherit;
   }
+  input:disabled, select:disabled, textarea:disabled, button:disabled {
+    opacity: 0.35; cursor: not-allowed;
+  }
   textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+  select {
+    width: 100%; background: #0f0c09; border: 1px solid var(--border); color: var(--ink);
+    border-radius: 4px; padding: 9px 11px; font-size: 13.5px; font-family: inherit;
+  }
+  .preview-wrap { text-align: center; }
+  .preview-disc {
+    width: 160px; height: 160px; border-radius: 50%; margin: 0 auto;
+    position: relative; overflow: hidden;
+    background: repeating-conic-gradient(#2a2620 0% 25%, #221f19 0% 50%) 50% / 16px 16px;
+    border: 1px solid var(--border);
+  }
+  .preview-disc img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .preview-hole {
+    position: absolute; top: 50%; left: 50%;
+    width: 30%; height: 30%; margin: -15% 0 0 -15%;
+    border-radius: 50%;
+    background: radial-gradient(circle, transparent 0% 50%, rgba(12,10,8,0.7) 51% 100%);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.55);
+  }
+  .preview-label {
+    position: absolute;
+    font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
+    color: #fff;
+    text-shadow: 0 0 4px rgba(255,255,255,0.9), 0 0 10px rgba(200,255,220,0.6);
+    line-height: 1.2;
+    pointer-events: none;
+  }
+  .preview-primary { font-size: 11px; font-weight: 900; margin-bottom: 2px; }
+  .preview-secondary { font-size: 7px; font-weight: 700; color: rgba(255,255,255,0.68); }
+  .preview-label.pos-top { top: 11%; left: 50%; transform: translateX(-50%); text-align: center; max-width: 78%; }
+  .preview-label.pos-bottom { bottom: 9%; top: auto; left: 50%; transform: translateX(-50%); text-align: center; max-width: 78%; }
+  .preview-label.pos-left { top: 50%; right: 57.5%; transform: translateY(-50%); text-align: right; max-width: 40%; }
+  .preview-label.pos-right { top: 50%; left: 57.5%; transform: translateY(-50%); text-align: left; max-width: 40%; }
   .row2 { display: flex; gap: 14px; }
   .row2 > div { flex: 1; }
   button {
@@ -52,9 +88,40 @@
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
   }
   .iv-item span { color: var(--ink-dim); }
-  .hint { font-size: 11.5px; color: var(--ink-dim); line-height: 1.6; margin-top: 4px; }
+  .hint { font-size: 11px; color: var(--ink-dim); }
   .folder-name { color: var(--accent); font-weight: 600; }
   .divider { height: 1px; background: var(--border); margin: 18px 0; }
+
+  /* ---------- 模式选择 ---------- */
+  .mode-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .mode-tabs label {
+    margin: 0; display: flex; align-items: center; gap: 6px;
+    background: #0f0c09; border: 1px solid var(--border); border-radius: 4px;
+    padding: 8px 12px; font-size: 12.5px; color: var(--ink-dim); cursor: pointer;
+  }
+  .mode-tabs input[type=radio] { accent-color: var(--accent); }
+  .mode-tabs input[type=radio]:checked + span { color: var(--ink); font-weight: 600; }
+  #uidLookupInfo { font-size: 11.5px; margin-top: 6px; min-height: 16px; }
+  #uidLookupInfo.ok { color: var(--ok); }
+  #uidLookupInfo.warn { color: var(--err); }
+
+  /* ---------- 编辑模式下的字段勾选框 ---------- */
+  .field-group { border: 1px solid transparent; border-radius: 4px; padding: 2px 0; transition: opacity 0.2s; }
+  .field-group.dim { opacity: 0.55; }
+  .field-check {
+    display: none; align-items: center; gap: 8px;
+    font-size: 12.5px; color: var(--ink); margin: 14px 0 4px;
+    cursor: pointer;
+  }
+  .field-check input { accent-color: var(--accent); }
+
+  /* ---------- 按模式隐藏区块 ---------- */
+  #deleteInterviewFields { display: none; }
+  #formPanel[data-mode="deleteDisc"] #fullFormFields,
+  #formPanel[data-mode="deleteDisc"] #interviewFields,
+  #formPanel[data-mode="deleteInterview"] #fullFormFields,
+  #formPanel[data-mode="deleteInterview"] #interviewFields { display: none; }
+  #formPanel[data-mode="deleteInterview"] #deleteInterviewFields { display: block; }
 
   /* ---------- 碟片裁剪器 ---------- */
   .cropper-modal {
@@ -88,88 +155,152 @@
 </head>
 <body>
 
-<h1>DVD ARCHIVE 上传器（网页版）</h1>
+<h1>nkmr_in_traces 上传器</h1>
 <div class="sub">用 Chrome 打开，选一次项目文件夹后即可直接写入图片和数据，不需要安装任何东西。</div>
 
 <div id="statusBox" class="status"></div>
 
 <div class="panel">
   <h2>第一步：选择项目文件夹</h2>
-  <button id="pickFolderBtn">选择 dvd-shelf 项目文件夹…</button>
-  <div class="hint" id="folderInfo">尚未选择文件夹。请选择包含 index.html 的那个 dvd-shelf 文件夹本身。</div>
+  <button id="pickFolderBtn">选择项目文件夹…</button>
+  <div class="hint" id="folderInfo">尚未选择文件夹。请选择包含 index.html 的那个项目文件夹本身。</div>
 </div>
 
-<div class="panel" id="formPanel" style="display:none;">
-  <h2>新增作品</h2>
+<div class="panel" id="formPanel" style="display:none;" data-mode="add">
+  <h2 id="formHeading">新增碟片</h2>
 
-  <label>剧名 *</label>
-  <input type="text" id="title">
-
-  <div class="row2">
-    <div>
-      <label>角色名（选填）</label>
-      <input type="text" id="role">
-    </div>
-    <div>
-      <label>年份 *</label>
-      <input type="number" id="year" placeholder="2024">
-    </div>
+  <div class="mode-tabs" id="modeTabs">
+    <label><input type="radio" name="mode" value="add" checked><span>新增碟片</span></label>
+    <label><input type="radio" name="mode" value="edit"><span>修改碟片</span></label>
+    <label><input type="radio" name="mode" value="deleteDisc"><span>删除碟片</span></label>
+    <label><input type="radio" name="mode" value="deleteInterview"><span>删除采访</span></label>
   </div>
 
-  <label>碟片图片 *（拨选界面显示的圆形图，选择后可拖动缩放取景）</label>
-  <div class="file-row">
-    <button id="discPickBtn" type="button">选择文件…</button>
-    <img id="discThumb" class="thumb-preview" style="display:none;">
-    <span class="file-name" id="discFileName">未选择</span>
+  <label>碟片编号 (uid) *</label>
+  <input type="text" id="uid" placeholder="例如 001">
+  <div class="hint" id="uidHintText"></div>
+  <div id="uidLookupInfo"></div>
+
+  <div id="deleteInterviewFields">
+    <label>要删除第几篇采访（按网页从上到下的顺序，多个用空格隔开，例如：1 3）</label>
+    <input type="text" id="deleteIvIndexes" placeholder="1 3">
   </div>
 
-  <label>背景大图（选填，不选则用碟片图代替）</label>
-  <div class="file-row">
-    <button id="coverPickBtn" type="button">选择文件…</button>
-    <img id="coverThumb" class="thumb-preview" style="display:none; border-radius: 4px;">
-    <span class="file-name" id="coverFileName">未选择</span>
+  <div id="fullFormFields">
+
+    <div class="field-group" data-field="basic">
+      <label class="field-check"><input type="checkbox" class="fieldToggle" checked><span>修改基本信息（剧名 / 角色名 / 年份）</span></label>
+      <label>剧名 *</label>
+      <input type="text" id="title">
+      <div class="row2">
+        <div>
+          <label>角色名（选填）</label>
+          <input type="text" id="role">
+        </div>
+        <div>
+          <label>年份 *</label>
+          <input type="number" id="year" placeholder="2024">
+        </div>
+      </div>
+    </div>
+
+    <div class="field-group" data-field="disc">
+      <label class="field-check"><input type="checkbox" class="fieldToggle" checked><span>修改碟片图片</span></label>
+      <label>碟片图片 *（拨选界面显示的圆形图，选择后可拖动缩放取景）</label>
+      <div class="file-row">
+        <button id="discPickBtn" type="button">选择文件…</button>
+        <img id="discThumb" class="thumb-preview" style="display:none;">
+        <span class="file-name" id="discFileName">未选择</span>
+      </div>
+    </div>
+
+    <div class="field-group" data-field="textPosition">
+      <label class="field-check"><input type="checkbox" class="fieldToggle" checked><span>修改 DVD 文字位置</span></label>
+      <label>DVD 文字位置（角色名/剧名印在碟片上的位置）</label>
+      <div class="row2">
+        <div>
+          <select id="textPosition">
+            <option value="left">左（靠孔左侧）</option>
+            <option value="right">右（靠孔右侧）</option>
+            <option value="top">上</option>
+            <option value="bottom">下</option>
+          </select>
+        </div>
+        <div class="preview-wrap">
+          <div class="preview-disc" id="previewDisc">
+            <img id="previewDiscImg" style="display:none;">
+            <div class="preview-hole"></div>
+            <div class="preview-label pos-left" id="previewLabel">
+              <div class="preview-primary" id="previewPrimary">角色名</div>
+              <div class="preview-secondary" id="previewSecondary">剧名</div>
+            </div>
+          </div>
+          <div class="hint" style="margin-top:6px;">实时预览，仅供参考</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field-group" data-field="cover">
+      <label class="field-check"><input type="checkbox" class="fieldToggle" checked><span>修改背景大图</span></label>
+      <label>背景大图（选填，不选则用碟片图代替）</label>
+      <div class="file-row">
+        <button id="coverPickBtn" type="button">选择文件…</button>
+        <img id="coverThumb" class="thumb-preview" style="display:none; border-radius: 4px;">
+        <span class="file-name" id="coverFileName">未选择</span>
+      </div>
+    </div>
+
   </div>
 
   <div class="divider"></div>
 
-  <h2>添加一条采访（可不填，之后再补）</h2>
-  <label>采访标题</label>
-  <input type="text" id="ivTitle">
+  <div id="interviewFields">
+    <div class="field-group" data-field="interview">
+      <label class="field-check"><input type="checkbox" class="fieldToggle" checked><span>新增采访</span></label>
+      <h2>添加一条或多条采访（可不填，之后再补）</h2>
 
-  <div class="row2">
-    <div>
-      <label>日期</label>
-      <input type="text" id="ivDate" placeholder="2024-05-01">
-    </div>
-    <div>
-      <label>来源</label>
-      <input type="text" id="ivSource" placeholder="杂志 / 网站名">
+      <label>采访标题（日语原文）</label>
+      <input type="text" id="ivTitle">
+
+      <label>采访标题（中文翻译，选填）</label>
+      <input type="text" id="ivTitleZh">
+
+      <div class="row2">
+        <div>
+          <label>日期</label>
+          <input type="text" id="ivDate" placeholder="2024-05-01">
+        </div>
+        <div>
+          <label>来源</label>
+          <input type="text" id="ivSource" placeholder="杂志 / 网站名">
+        </div>
+      </div>
+
+      <label>链接 URL</label>
+      <input type="text" id="ivUrl" placeholder="https://...">
+
+      <div class="row2">
+        <div>
+          <label>日语原文（每段换行）</label>
+          <textarea id="ivJa"></textarea>
+        </div>
+        <div>
+          <label>中文翻译（每段换行，与左边一一对应）</label>
+          <textarea id="ivZh"></textarea>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <button id="addInterviewBtn" type="button">＋ 添加这条采访到列表</button>
+      </div>
+
+      <div class="iv-list" id="ivList"></div>
     </div>
   </div>
-
-  <label>链接 URL</label>
-  <input type="text" id="ivUrl" placeholder="https://...">
-
-  <div class="row2">
-    <div>
-      <label>日语原文（每段换行）</label>
-      <textarea id="ivJa"></textarea>
-    </div>
-    <div>
-      <label>中文翻译（每段换行，与左边一一对应）</label>
-      <textarea id="ivZh"></textarea>
-    </div>
-  </div>
-
-  <div style="margin-top:12px;">
-    <button id="addInterviewBtn" type="button">＋ 添加这条采访到列表</button>
-  </div>
-
-  <div class="iv-list" id="ivList"></div>
 
   <div class="divider"></div>
 
-  <button class="primary" id="submitBtn" disabled>提交，写入网站数据</button>
+  <button class="primary" id="submitBtn">提交，写入网站数据</button>
 </div>
 
 <div class="cropper-modal" id="cropperModal">
@@ -215,14 +346,99 @@ document.getElementById("pickFolderBtn").addEventListener("click", async () => {
     document.getElementById("folderInfo").innerHTML =
       `已连接文件夹：<span class="folder-name">${rootHandle.name}</span>　·　当前已有 ${dvdsData.length} 部作品`;
     document.getElementById("formPanel").style.display = "block";
-    document.getElementById("submitBtn").disabled = false;
-    showStatus("文件夹连接成功，可以开始填写了。", true);
+    showStatus("文件夹连接成功，可以开始操作了。", true);
+    applyModeUI();
   } catch (e) {
     if (e.name !== "AbortError") {
-      showStatus("选择文件夹失败：" + e.message + "（请确认选的是 dvd-shelf 文件夹本身，且里面有 data/dvds.json）", false);
+      showStatus("选择文件夹失败：" + e.message + "（请确认选的是项目文件夹本身，且里面有 data/dvds.json）", false);
     }
   }
 });
+
+// ---------- 模式切换 ----------
+function currentMode() {
+  const el = document.querySelector('input[name="mode"]:checked');
+  return el ? el.value : "add";
+}
+
+function isChecked(group) {
+  const cb = document.querySelector(`.field-group[data-field="${group}"] .fieldToggle`);
+  return cb ? cb.checked : true;
+}
+
+function applyFieldDisabled() {
+  document.querySelectorAll(".field-group").forEach((group) => {
+    const cb = group.querySelector(".fieldToggle");
+    const on = cb ? cb.checked : true;
+    group.querySelectorAll("input, select, textarea, button").forEach((el) => {
+      if (el === cb) return;
+      el.disabled = !on;
+    });
+    group.classList.toggle("dim", !on);
+  });
+}
+
+document.querySelectorAll(".fieldToggle").forEach((cb) => {
+  cb.addEventListener("change", applyFieldDisabled);
+});
+
+const HEADINGS = { add: "新增碟片", edit: "修改碟片", deleteDisc: "删除碟片", deleteInterview: "删除采访" };
+const UID_HINTS = {
+  add: "填一个尚未使用过的编号，提交后成为这张碟片的唯一编号",
+  edit: "填已存在的编号，下面勾选要修改的项目，不勾选的保持不变",
+  deleteDisc: "填已存在的编号，提交后这张碟片会被整个删除",
+  deleteInterview: "填已存在的编号",
+};
+const SUBMIT_LABELS = {
+  add: "提交，写入网站数据",
+  edit: "提交修改",
+  deleteDisc: "确认删除这张碟片",
+  deleteInterview: "确认删除所选采访",
+};
+
+function applyModeUI() {
+  const mode = currentMode();
+  document.getElementById("formPanel").dataset.mode = mode;
+  document.getElementById("formHeading").textContent = HEADINGS[mode];
+  document.getElementById("uidHintText") && (document.getElementById("uidHintText").textContent = UID_HINTS[mode]);
+  document.getElementById("submitBtn").textContent = SUBMIT_LABELS[mode];
+
+  const isEdit = mode === "edit";
+  document.querySelectorAll(".field-check").forEach((el) => {
+    el.style.display = isEdit ? "flex" : "none";
+  });
+  document.querySelectorAll(".fieldToggle").forEach((cb) => {
+    cb.checked = !isEdit; // 编辑模式默认全部不勾选；新增模式全部视为启用
+  });
+  applyFieldDisabled();
+  updateUidLookup();
+}
+
+document.querySelectorAll('input[name="mode"]').forEach((r) => {
+  r.addEventListener("change", applyModeUI);
+});
+
+// ---------- uid 实时查找提示 ----------
+function updateUidLookup() {
+  const mode = currentMode();
+  const uid = document.getElementById("uid").value.trim();
+  const info = document.getElementById("uidLookupInfo");
+  if (!uid || !dvdsData) { info.textContent = ""; info.className = ""; return; }
+  const found = dvdsData.find((d) => d.id === uid);
+  if (mode === "add") {
+    if (found) { info.textContent = `⚠ 编号已存在（${found.title}），提交会被跳过`; info.className = "warn"; }
+    else { info.textContent = "✓ 编号可用"; info.className = "ok"; }
+  } else {
+    if (found) {
+      info.textContent = `✓ 找到：${found.role ? found.role + " / " : ""}${found.title}（${found.year}），采访 ${(found.interviews || []).length} 条`;
+      info.className = "ok";
+    } else {
+      info.textContent = "⚠ 未找到该编号，提交会被跳过";
+      info.className = "warn";
+    }
+  }
+}
+document.getElementById("uid").addEventListener("input", updateUidLookup);
 
 // ---------- 选择图片 ----------
 async function pickImageFile() {
@@ -256,12 +472,12 @@ const cropperCtx = cropperCanvas.getContext("2d");
 const cropperWrap = document.getElementById("cropperWrap");
 const cropperZoomInput = document.getElementById("cropperZoom");
 
-const CROP_SIZE = 600;      // 画布内部分辨率
-const CROP_HOLE_R = 46;     // 碟孔半径（与网站前端的比例保持一致）
+const CROP_SIZE = 600;
+const CROP_HOLE_R = 46;
 
 let cropperImg = null;
 let cropperBaseScale = 1;
-let cropperZoom = 100;      // 百分比，100 = 刚好覆盖整圆
+let cropperZoom = 100;
 let cropperOffsetX = 0;
 let cropperOffsetY = 0;
 let cropperDragging = false;
@@ -282,9 +498,7 @@ function openCropper(file) {
   img.src = URL.createObjectURL(file);
 }
 
-function clamp(v, lo, hi) {
-  return Math.min(hi, Math.max(lo, v));
-}
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
 
 function clampCropperOffsets() {
   const scale = cropperBaseScale * (cropperZoom / 100);
@@ -317,7 +531,6 @@ function drawCropper() {
   ctx.drawImage(cropperImg, dx, dy, dw, dh);
   ctx.restore();
 
-  // 挖出中间的碟孔（透明）
   ctx.save();
   ctx.globalCompositeOperation = "destination-out";
   ctx.beginPath();
@@ -338,7 +551,7 @@ cropperWrap.addEventListener("pointerdown", (e) => {
 });
 cropperWrap.addEventListener("pointermove", (e) => {
   if (!cropperDragging) return;
-  const ratio = CROP_SIZE / cropperWrap.clientWidth; // 显示尺寸 -> 画布内部尺寸的换算
+  const ratio = CROP_SIZE / cropperWrap.clientWidth;
   cropperOffsetX = cropperDragStart.ox + (e.clientX - cropperDragStart.x) * ratio;
   cropperOffsetY = cropperDragStart.oy + (e.clientY - cropperDragStart.y) * ratio;
   drawCropper();
@@ -355,18 +568,23 @@ document.getElementById("cropperCancel").addEventListener("click", () => {
 document.getElementById("cropperConfirm").addEventListener("click", () => {
   cropperCanvas.toBlob((blob) => {
     discFile = new File([blob], "disc.png", { type: "image/png" });
+    const url = URL.createObjectURL(blob);
     const thumb = document.getElementById("discThumb");
-    thumb.src = URL.createObjectURL(blob);
+    thumb.src = url;
     thumb.style.display = "inline-block";
     document.getElementById("discFileName").textContent = "已裁剪（disc.png）";
+    const previewImg = document.getElementById("previewDiscImg");
+    previewImg.src = url;
+    previewImg.style.display = "block";
     cropperModal.classList.remove("open");
     cropperImg = null;
   }, "image/png");
 });
 
-// ---------- 采访列表 ----------
+// ---------- 采访列表（暂存，提交时写入） ----------
 document.getElementById("addInterviewBtn").addEventListener("click", () => {
   const title = document.getElementById("ivTitle").value.trim();
+  const titleZh = document.getElementById("ivTitleZh").value.trim();
   const date = document.getElementById("ivDate").value.trim();
   const source = document.getElementById("ivSource").value.trim();
   const url = document.getElementById("ivUrl").value.trim();
@@ -378,10 +596,10 @@ document.getElementById("addInterviewBtn").addEventListener("click", () => {
     return;
   }
 
-  interviews.push({ title, date, source, url, excerpt_ja: ja, excerpt_zh: zh });
+  interviews.push({ title, title_zh: titleZh, date, source, url, excerpt_ja: ja, excerpt_zh: zh });
   renderIvList();
 
-  ["ivTitle", "ivDate", "ivSource", "ivUrl", "ivJa", "ivZh"].forEach(
+  ["ivTitle", "ivTitleZh", "ivDate", "ivSource", "ivUrl", "ivJa", "ivZh"].forEach(
     (id) => (document.getElementById(id).value = "")
   );
 });
@@ -403,23 +621,6 @@ function renderIvList() {
 }
 
 // ---------- 工具函数 ----------
-function slugify(text, fallback) {
-  const ascii = text
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase();
-  return ascii || fallback;
-}
-
-function uniqueId(base, existingIds) {
-  if (!existingIds.has(base)) return base;
-  let n = 2;
-  while (existingIds.has(`${base}-${n}`)) n++;
-  return `${base}-${n}`;
-}
-
 async function getOrCreateDir(parent, name) {
   return await parent.getDirectoryHandle(name, { create: true });
 }
@@ -431,77 +632,190 @@ async function writeFile(dirHandle, filename, fileBlob) {
   await writable.close();
 }
 
+async function deleteFileByPath(dirHandle, relPath) {
+  if (!relPath) return;
+  const filename = relPath.split("/").pop();
+  try { await dirHandle.removeEntry(filename); } catch (e) { /* 本来就不存在，忽略 */ }
+}
+
 function extOf(file, fallback) {
   const m = file.name.match(/\.[a-zA-Z0-9]+$/);
   return m ? m[0].toLowerCase() : fallback;
 }
 
+async function saveJson(dataDir) {
+  const jsonFh = await dataDir.getFileHandle("dvds.json", { create: true });
+  const writable = await jsonFh.createWritable();
+  await writable.write(JSON.stringify(dvdsData, null, 2));
+  await writable.close();
+}
+
+// ---------- 表单重置 ----------
+function clearFileState() {
+  discFile = null; coverFile = null;
+  document.getElementById("discFileName").textContent = "未选择";
+  document.getElementById("coverFileName").textContent = "未选择";
+  document.getElementById("discThumb").style.display = "none";
+  document.getElementById("coverThumb").style.display = "none";
+  document.getElementById("previewDiscImg").style.display = "none";
+  interviews = [];
+  renderIvList();
+}
+
+function resetForm() {
+  document.getElementById("uid").value = "";
+  document.getElementById("title").value = "";
+  document.getElementById("role").value = "";
+  document.getElementById("year").value = "";
+  document.getElementById("textPosition").value = "left";
+  document.getElementById("deleteIvIndexes").value = "";
+  clearFileState();
+  applyModeUI();
+  updatePreview();
+}
+
 // ---------- 提交 ----------
 document.getElementById("submitBtn").addEventListener("click", async () => {
-  const title = document.getElementById("title").value.trim();
-  const role = document.getElementById("role").value.trim();
-  const yearRaw = document.getElementById("year").value.trim();
-
-  if (!title) return showStatus("请填写剧名。", false);
-  if (!yearRaw || isNaN(Number(yearRaw))) return showStatus("年份请填数字，比如 2024。", false);
-  if (!discFile) return showStatus("请选择一张碟片图片。", false);
   if (!rootHandle || !dvdsData) return showStatus("请先选择项目文件夹。", false);
 
-  const year = Number(yearRaw);
-  const existingIds = new Set(dvdsData.map((d) => d.id));
-  const baseId = slugify(`${title}-${year}`, `item-${year}-${Date.now()}`);
-  const newId = uniqueId(baseId, existingIds);
+  const mode = currentMode();
+  const uid = document.getElementById("uid").value.trim();
+  if (!uid) return showStatus("请填写碟片编号 (uid)。", false);
+
+  const idx = dvdsData.findIndex((d) => d.id === uid);
 
   try {
     const imagesDir = await getOrCreateDir(rootHandle, "images");
     const spinesDir = await getOrCreateDir(imagesDir, "spines");
     const coversDir = await getOrCreateDir(imagesDir, "covers");
+    const dataDir = await getOrCreateDir(rootHandle, "data");
 
-    const discExt = extOf(discFile, ".png");
-    const discName = `${newId}${discExt}`;
-    await writeFile(spinesDir, discName, discFile);
-    const discRel = `images/spines/${discName}`;
+    if (mode === "add") {
+      if (idx !== -1) return; // uid 已存在，静默跳过
 
-    let coverRel = discRel;
-    if (coverFile) {
-      const coverExt = extOf(coverFile, ".jpg");
-      const coverName = `${newId}${coverExt}`;
-      await writeFile(coversDir, coverName, coverFile);
-      coverRel = `images/covers/${coverName}`;
+      const title = document.getElementById("title").value.trim();
+      const role = document.getElementById("role").value.trim();
+      const yearRaw = document.getElementById("year").value.trim();
+      if (!title || !yearRaw || isNaN(Number(yearRaw)) || !discFile) return; // 缺必填项，静默跳过
+      const year = Number(yearRaw);
+
+      const discExt = extOf(discFile, ".png");
+      const discName = `${uid}${discExt}`;
+      await writeFile(spinesDir, discName, discFile);
+      const discRel = `images/spines/${discName}`;
+
+      let coverRel = discRel;
+      if (coverFile) {
+        const coverExt = extOf(coverFile, ".jpg");
+        const coverName = `${uid}${coverExt}`;
+        await writeFile(coversDir, coverName, coverFile);
+        coverRel = `images/covers/${coverName}`;
+      }
+
+      dvdsData.push({
+        id: uid, title, role, year,
+        textPosition: document.getElementById("textPosition").value,
+        disc: discRel, cover: coverRel,
+        interviews: interviews,
+      });
+
+      await saveJson(dataDir);
+      showStatus(`已新增 uid=${uid}《${title}》（${year}），采访 ${interviews.length} 条。记得去终端 git push。`, true);
+      resetForm();
+
+    } else if (mode === "edit") {
+      if (idx === -1) return; // uid 不存在，静默跳过
+      const record = dvdsData[idx];
+
+      if (isChecked("basic")) {
+        const title = document.getElementById("title").value.trim();
+        const yearRaw = document.getElementById("year").value.trim();
+        if (title) record.title = title;
+        record.role = document.getElementById("role").value.trim();
+        if (yearRaw && !isNaN(Number(yearRaw))) record.year = Number(yearRaw);
+      }
+
+      if (isChecked("textPosition")) {
+        record.textPosition = document.getElementById("textPosition").value;
+      }
+
+      if (isChecked("disc") && discFile) {
+        const wasFallbackCover = record.cover === record.disc;
+        await deleteFileByPath(spinesDir, record.disc);
+        const ext = extOf(discFile, ".png");
+        const name = `${uid}${ext}`;
+        await writeFile(spinesDir, name, discFile);
+        const newDiscRel = `images/spines/${name}`;
+        record.disc = newDiscRel;
+        if (wasFallbackCover && !isChecked("cover")) {
+          record.cover = newDiscRel;
+        }
+      }
+
+      if (isChecked("cover") && coverFile) {
+        await deleteFileByPath(coversDir, record.cover);
+        const ext = extOf(coverFile, ".jpg");
+        const name = `${uid}${ext}`;
+        await writeFile(coversDir, name, coverFile);
+        record.cover = `images/covers/${name}`;
+      }
+
+      if (isChecked("interview") && interviews.length) {
+        record.interviews = [...(record.interviews || []), ...interviews];
+      }
+
+      await saveJson(dataDir);
+      showStatus(`已更新 uid=${uid}。记得去终端 git push。`, true);
+      resetForm();
+
+    } else if (mode === "deleteDisc") {
+      if (idx === -1) return;
+      const record = dvdsData[idx];
+      await deleteFileByPath(spinesDir, record.disc);
+      if (record.cover && record.cover !== record.disc) {
+        await deleteFileByPath(coversDir, record.cover);
+      }
+      dvdsData.splice(idx, 1);
+      await saveJson(dataDir);
+      showStatus(`已删除 uid=${uid}。记得去终端 git push。`, true);
+      resetForm();
+
+    } else if (mode === "deleteInterview") {
+      if (idx === -1) return;
+      const record = dvdsData[idx];
+      const raw = document.getElementById("deleteIvIndexes").value.trim();
+      const nums = raw.split(/\s+/).filter(Boolean).map(Number)
+        .filter((n) => Number.isInteger(n) && n >= 1 && n <= (record.interviews || []).length);
+      if (!nums.length) return;
+      const uniqueNums = [...new Set(nums)].sort((a, b) => b - a);
+      uniqueNums.forEach((n) => record.interviews.splice(n - 1, 1));
+      await saveJson(dataDir);
+      showStatus(`已删除 uid=${uid} 的第 ${uniqueNums.slice().reverse().join("、")} 篇采访。记得去终端 git push。`, true);
+      resetForm();
     }
 
-    const newEntry = {
-      id: newId, title, role, year,
-      disc: discRel, cover: coverRel,
-      interviews: interviews,
-    };
-    dvdsData.push(newEntry);
-
-    const dataDir = await getOrCreateDir(rootHandle, "data");
-    const jsonFh = await dataDir.getFileHandle("dvds.json", { create: true });
-    const writable = await jsonFh.createWritable();
-    await writable.write(JSON.stringify(dvdsData, null, 2));
-    await writable.close();
-
-    showStatus(`已添加《${title}》（${year}），id: ${newId}，采访 ${interviews.length} 条。现在去终端 git add / commit / push 同步到网站即可。`, true);
-
-    // 重置表单，folder连接保留，可以连续添加下一部
-    document.getElementById("title").value = "";
-    document.getElementById("role").value = "";
-    document.getElementById("year").value = "";
-    discFile = null; coverFile = null;
-    document.getElementById("discFileName").textContent = "未选择";
-    document.getElementById("coverFileName").textContent = "未选择";
-    document.getElementById("discThumb").style.display = "none";
-    document.getElementById("coverThumb").style.display = "none";
-    interviews = [];
-    renderIvList();
     document.getElementById("folderInfo").innerHTML =
       `已连接文件夹：<span class="folder-name">${rootHandle.name}</span>　·　当前已有 ${dvdsData.length} 部作品`;
+
   } catch (e) {
-    showStatus("提交失败：" + e.message, false);
+    showStatus("操作失败：" + e.message, false);
   }
 });
+
+// ---------- 实时预览（DVD文字位置） ----------
+function updatePreview() {
+  const title = document.getElementById("title").value.trim() || "剧名";
+  const role = document.getElementById("role").value.trim();
+  const pos = document.getElementById("textPosition").value;
+
+  document.getElementById("previewPrimary").textContent = role || title;
+  document.getElementById("previewSecondary").textContent = role ? title : "";
+  document.getElementById("previewLabel").className = `preview-label pos-${pos}`;
+}
+["title", "role", "textPosition"].forEach((id) => {
+  document.getElementById(id).addEventListener("input", updatePreview);
+});
+updatePreview();
 </script>
 </body>
 </html>
