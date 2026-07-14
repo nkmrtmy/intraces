@@ -1,7 +1,8 @@
 // ------------------------------------------------------------------
-// 开场动画：白色发光线条书架 + 木箱，鼠标悬浮变发光手，
-// 点击后书架自身的每一根线/每一块板直接向下坍塌，
-// 同时飞出弧形翅膀的蓝色发光蝴蝶，之后淡入正式的碟片拨选界面。
+// 开场动画：白色发光线条书架 + 木箱（带顶面/侧面，做出立体感，水平放置），
+// 鼠标悬浮变发光手，点击后书架自身的每一根线/每一块板直接向下坍塌
+// （轻微旋转，不整圈乱转），同时飞出弧形翅膀的蓝色发光蝴蝶，
+// 之后淡入正式的碟片拨选界面。
 // ------------------------------------------------------------------
 
 (function () {
@@ -30,17 +31,33 @@
     return el;
   }
 
-  // 整个场景外层的组，最后统一往左旋转15度，露出侧面高度感
-  const sceneGroup = document.createElementNS(SVG_NS, "g");
-  sceneGroup.setAttribute("id", "sceneGroup");
-  svg.appendChild(sceneGroup);
+  // 顶面/侧面用的多边形，做出立体厚度感
+  function poly(points, extraClass) {
+    const el = document.createElementNS(SVG_NS, "polygon");
+    el.setAttribute("points", points.map((p) => p.join(",")).join(" "));
+    el.setAttribute("class", extraClass ? `wire ${extraClass}` : "wire");
+    return el;
+  }
 
   const shelfGroup = document.createElementNS(SVG_NS, "g");
   shelfGroup.setAttribute("id", "shelfGroup");
-  sceneGroup.appendChild(shelfGroup);
+  svg.appendChild(shelfGroup);
 
-  // ---------- 中间柜子（书架） ----------
-  const cabX = 300, cabY = 50, cabW = 300, cabH = 430;
+  // ---------- 中间柜子（书架），水平放置 ----------
+  const cabX = 300, cabY = 60, cabW = 300, cabH = 420;
+
+  // 立体厚度：顶面 + 右侧面（深度向量 DX/DY）
+  const DX = 36, DY = -22;
+  shelfGroup.appendChild(poly([
+    [cabX, cabY], [cabX + cabW, cabY],
+    [cabX + cabW + DX, cabY + DY], [cabX + DX, cabY + DY],
+  ], "wire-face"));
+  shelfGroup.appendChild(poly([
+    [cabX + cabW, cabY], [cabX + cabW + DX, cabY + DY],
+    [cabX + cabW + DX, cabY + cabH + DY], [cabX + cabW, cabY + cabH],
+  ], "wire-face"));
+
+  // 正面框
   shelfGroup.appendChild(rect(cabX, cabY, cabW, cabH, 3));
 
   const rows = 4;
@@ -64,37 +81,54 @@
     fillCompartment(cabX, cabY + rowH * i, cabW, rowH);
   }
 
-  // 顶部平放/斜靠的几本，故意做得杂乱一点：高低不齐、有的斜靠、间距不均
-  const topBookCount = 6;
-  let tx = cabX + 6;
-  for (let i = 0; i < topBookCount; i++) {
-    const bw = 30 + Math.random() * 34;
-    if (tx + bw > cabX + cabW - 6) break;
-    const bh = 9 + Math.random() * 8;
-    const by = cabY - 8 - bh - Math.random() * 10;
-    const b = rect(tx, by, bw, bh, 1);
-    const rot = (Math.random() - 0.5) * 22;
-    b.setAttribute("transform", `rotate(${rot} ${tx + bw / 2} ${by + bh})`);
-    shelfGroup.appendChild(b);
-    tx += bw + 2 + Math.random() * 10;
-  }
-  // 再散落几本歪倒的
-  for (let i = 0; i < 2; i++) {
-    const bw = 42 + Math.random() * 20;
-    const bh = 10 + Math.random() * 6;
-    const bx = cabX + 20 + Math.random() * (cabW - 80);
-    const by = cabY - 10 - bh;
-    const b = rect(bx, by, bw, bh, 1);
-    b.setAttribute("transform", `rotate(${55 + Math.random() * 30} ${bx + bw / 2} ${by + bh / 2})`);
-    shelfGroup.appendChild(b);
+  // 顶部散放的书：依次排列，绝不互相重叠/穿模；
+  // 快排到边缘时，偶尔让一本往同一个方向倒（靠在前一本上），不会交叉穿模
+  {
+    const maxX = cabX + cabW - 6;
+    let tx = cabX + 6;
+    let sinceLastLean = 0;
+    while (tx < maxX - 18) {
+      const nearEnd = maxX - tx < 110;
+      const canLean = sinceLastLean > 1 && nearEnd && Math.random() < 0.55;
+      const bw = 24 + Math.random() * 26;
+      if (tx + bw > maxX) break;
+      const bh = 9 + Math.random() * 7;
+      const by = cabY - 6 - bh;
+      const b = rect(tx, by, bw, bh, 1);
+      if (canLean) {
+        const rot = 28 + Math.random() * 30; // 只往一个方向倒，靠在前面的书上
+        b.setAttribute("transform", `rotate(${rot} ${tx} ${by + bh})`);
+        shelfGroup.appendChild(b);
+        tx += bw * 0.55 + 4; // 倒下的书占地更宽，留够间距避免下一本穿过来
+        sinceLastLean = 0;
+      } else {
+        const rot = (Math.random() - 0.5) * 8;
+        b.setAttribute("transform", `rotate(${rot} ${tx + bw / 2} ${by + bh})`);
+        shelfGroup.appendChild(b);
+        tx += bw + 2 + Math.random() * 6;
+        sinceLastLean++;
+      }
+    }
   }
 
-  // ---------- 木箱 ----------
+  // ---------- 木箱（带顶面/侧面） ----------
   function crate(cx, cy, w, h, inFront) {
     const g = document.createElementNS(SVG_NS, "g");
+    const cdx = inFront ? 22 : 16;
+    const cdy = inFront ? -14 : -10;
+
+    g.appendChild(poly([
+      [cx, cy], [cx + w, cy], [cx + w + cdx, cy + cdy], [cx + cdx, cy + cdy],
+    ], "wire-face"));
+    g.appendChild(poly([
+      [cx + w, cy], [cx + w + cdx, cy + cdy],
+      [cx + w + cdx, cy + h + cdy], [cx + w, cy + h],
+    ], "wire-face"));
+
     const body = rect(cx, cy, w, h, 2);
     if (inFront) body.classList.add("wire-solid");
     g.appendChild(body);
+
     const n = inFront ? 9 : 6;
     const slotW = (w - 20) / n;
     for (let i = 0; i < n; i++) {
@@ -110,14 +144,9 @@
   }
 
   const crateY = cabY + cabH - 148;
-  // 左边木箱位置不变
   shelfGroup.appendChild(crate(70, crateY, 170, 148, false));
-  // 右边木箱：挪到书架前面（画在后面=盖在上面），做成更长的长方体
   const crateRGroup = crate(cabX + 60, crateY + 40, 320, 118, true);
   shelfGroup.appendChild(crateRGroup);
-
-  // ---------- 整个场景往左旋转15度 ----------
-  sceneGroup.setAttribute("transform", "rotate(-15, 430, 300)");
 
   // ---------- 自定义发光手型光标 ----------
   const cursor = document.getElementById("customCursor");
@@ -137,7 +166,7 @@
     cursor.style.top = e.clientY + "px";
   });
 
-  // ---------- 点击：书架自身坍塌 + 化蝶 ----------
+  // ---------- 点击：整体向下坍塌（轻微旋转）+ 化蝶 ----------
   function shatter() {
     svg.removeEventListener("click", shatter);
     svg.style.cursor = "default";
@@ -146,16 +175,15 @@
 
     const bbox = svg.getBoundingClientRect();
 
-    // 书架/木箱/书本，每一根线各自往下坍塌，带随机旋转和延迟
     const pieces = shelfGroup.querySelectorAll(".wire");
     pieces.forEach((el) => {
-      const dx = (Math.random() - 0.5) * 240;
-      const dy = 170 + Math.random() * 300;
-      const rot = (Math.random() - 0.5) * 620;
+      const dx = (Math.random() - 0.5) * 130;       // 横向漂移不大，整体感觉是往下坠
+      const dy = 180 + Math.random() * 260;          // 主要是往下掉
+      const rot = (Math.random() - 0.5) * 170;       // 旋转幅度收在约±85度，不整圈乱转
       el.style.setProperty("--dx", dx + "px");
       el.style.setProperty("--dy", dy + "px");
       el.style.setProperty("--rot", rot + "deg");
-      el.style.animationDelay = Math.random() * 0.22 + "s";
+      el.style.animationDelay = Math.random() * 0.16 + "s";
       el.classList.add("shatter-piece");
     });
 

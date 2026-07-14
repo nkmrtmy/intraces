@@ -94,9 +94,19 @@ body.pre-reveal .stage { opacity: 0; pointer-events: none; }
 }
 /* 挪到前面的木箱：稍微不透明一点，压住后面书架的线 */
 #shelfSvg .wire-solid { fill: rgba(6,9,8,0.62); }
+/* 柜子/木箱的顶面与侧面：比正面稍微实一点，读出转折面 */
+#shelfSvg .wire-face { fill: rgba(169,255,207,0.09); }
 
-/* 点击后：书架自身的每一根线/每一块板，各自坍塌下落 */
-#shelfSvg .wire.shatter-piece {
+/* 侧面/顶面：比正面暗一点，做出光照层次 */
+#shelfSvg .wire-side {
+  fill: rgba(169,255,207,0.018);
+  stroke: rgba(190,255,215,0.5);
+  stroke-width: 1.1;
+  filter: drop-shadow(0 0 2px rgba(180,255,210,0.45));
+}
+
+/* 点击后：书架自身的每一根线/每一块板，整体向下坍塌 */
+#shelfSvg .shatter-piece {
   animation: wireFall 1.05s cubic-bezier(.5,0,.9,1) forwards;
   transform-box: fill-box;
   transform-origin: 50% 50%;
