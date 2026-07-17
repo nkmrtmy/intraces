@@ -37,7 +37,7 @@ function buildDiscs() {
     const label = document.createElement("div");
     const pos = dvd.textPosition || "left";
     label.className = `disc-label pos-${pos}`;
-    label.innerHTML = `<div class="label-primary">${escapeHtml(dvd.role || dvd.title)}</div><div class="label-secondary">${escapeHtml(dvd.role ? dvd.title : "")}</div>`;
+    label.innerHTML = `<div class="label-primary">${wrapLines(dvd.role || dvd.title)}</div><div class="label-secondary">${wrapLines(dvd.role ? dvd.title : "")}</div>`;
     item.appendChild(label);
 
     item.addEventListener("click", () => {
@@ -166,8 +166,8 @@ function openDetail(dvd) {
 }
 
 function renderDetail(dvd) {
-  document.getElementById("detailTitle").textContent = dvd.role || dvd.title;
-  document.getElementById("detailRole").textContent = dvd.role ? dvd.title : "";
+  document.getElementById("detailTitle").innerHTML = nl2br(dvd.role || dvd.title);
+  document.getElementById("detailRole").innerHTML = dvd.role ? nl2br(dvd.title) : "";
 
   const list = document.getElementById("detailInterviews");
   list.innerHTML = dvd.interviews && dvd.interviews.length
@@ -307,4 +307,18 @@ function escapeHtml(str) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+function nl2br(str) {
+  return escapeHtml(str).replaceAll("\n", "<br>");
+}
+
+// 碟片标签专用：按行拆分，每一行单独包一层背景框，
+// 这样背景只贴着文字本身，不会在没有字的地方也铺出一块
+function wrapLines(str) {
+  if (!str) return "";
+  return escapeHtml(str)
+    .split("\n")
+    .map((line) => (line.trim() === "" ? "" : `<span class="line-bg">${line}</span>`))
+    .join("<br>");
 }

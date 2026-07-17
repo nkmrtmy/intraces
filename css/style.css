@@ -304,8 +304,17 @@ body.pre-reveal .stage { opacity: 0; pointer-events: none; }
 }
 .disc-item.is-center .disc-label { opacity: 1; }
 
-.disc-label .label-primary { font-size: 19px; font-weight: 900; letter-spacing: 0.02em; margin-bottom: 4px; }
-.disc-label .label-secondary { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.68); letter-spacing: 0.03em; }
+.disc-label .label-primary {
+  font-size: 19px; font-weight: 900; letter-spacing: 0.02em; margin-bottom: 4px;
+}
+.disc-label .label-secondary {
+  font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.68); letter-spacing: 0.03em;
+}
+.disc-label .line-bg {
+  display: inline-block;
+  background: rgba(0,0,0,0.03);
+  padding: 1px 5px;
+}
 
 /* 文字位置：上 / 下 / 左 / 右（左右靠碟孔切线垂直对齐） */
 .disc-label.pos-top {
@@ -419,6 +428,14 @@ body.pre-reveal .stage { opacity: 0; pointer-events: none; }
   transform: translateY(14px);
   animation: riseIn 0.6s ease 0.3s forwards;
   padding-right: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(169,255,207,0.35) transparent;
+}
+.detail-bottomleft::-webkit-scrollbar { width: 3px; }
+.detail-bottomleft::-webkit-scrollbar-track { background: transparent; }
+.detail-bottomleft::-webkit-scrollbar-thumb {
+  background: rgba(169,255,207,0.35);
+  border-radius: 3px;
 }
 @keyframes riseIn { to { opacity: 1; transform: translateY(0); } }
 
@@ -467,6 +484,14 @@ body.pre-reveal .stage { opacity: 0; pointer-events: none; }
   padding: 44px 52px;
   position: relative;
   box-shadow: 0 0 60px rgba(0,0,0,0.6);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(169,255,207,0.35) transparent;
+}
+.interview-modal-inner::-webkit-scrollbar { width: 3px; }
+.interview-modal-inner::-webkit-scrollbar-track { background: transparent; }
+.interview-modal-inner::-webkit-scrollbar-thumb {
+  background: rgba(169,255,207,0.35);
+  border-radius: 3px;
 }
 .interview-modal-close {
   position: absolute;
@@ -577,6 +602,14 @@ body.pre-reveal .stage { opacity: 0; pointer-events: none; }
   display: none;
   flex-direction: column;
   gap: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(169,255,207,0.35) transparent;
+}
+.search-overlay::-webkit-scrollbar { width: 3px; }
+.search-overlay::-webkit-scrollbar-track { background: transparent; }
+.search-overlay::-webkit-scrollbar-thumb {
+  background: rgba(169,255,207,0.35);
+  border-radius: 3px;
 }
 .search-overlay.open { display: flex; }
 

@@ -58,8 +58,8 @@
     line-height: 1.2;
     pointer-events: none;
   }
-  .preview-primary { font-size: 11px; font-weight: 900; margin-bottom: 2px; }
-  .preview-secondary { font-size: 7px; font-weight: 700; color: rgba(255,255,255,0.68); }
+  .preview-primary { font-size: 11px; font-weight: 900; margin-bottom: 2px; white-space: pre-line; }
+  .preview-secondary { font-size: 7px; font-weight: 700; color: rgba(255,255,255,0.68); white-space: pre-line; }
   .preview-label.pos-top { top: 11%; left: 50%; transform: translateX(-50%); text-align: center; max-width: 78%; }
   .preview-label.pos-bottom { bottom: 9%; top: auto; left: 50%; transform: translateX(-50%); text-align: center; max-width: 78%; }
   .preview-label.pos-left { top: 50%; right: 60%; transform: translateY(-50%); text-align: right; max-width: 40%; }
@@ -190,8 +190,8 @@
 
     <div class="field-group" data-field="basic">
       <label class="field-check"><input type="checkbox" class="fieldToggle" checked><span>修改基本信息（剧名 / 角色名 / 年份）</span></label>
-      <label>剧名 *</label>
-      <input type="text" id="title">
+      <label>剧名 *（想在碟片/详情页手动换行的话，直接在这里按回车换行）</label>
+      <textarea id="title" rows="2" style="min-height:auto; resize:vertical;"></textarea>
       <div class="row2">
         <div>
           <label>角色名（选填）</label>

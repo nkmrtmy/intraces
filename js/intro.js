@@ -81,33 +81,23 @@
     fillCompartment(cabX, cabY + rowH * i, cabW, rowH);
   }
 
-  // 顶部散放的书：依次排列，绝不互相重叠/穿模；
-  // 快排到边缘时，偶尔让一本往同一个方向倒（靠在前一本上），不会交叉穿模
+  // 顶部只放3本，尺寸做得更长一些，摆得随性但不重叠
   {
-    const maxX = cabX + cabW - 6;
-    let tx = cabX + 6;
-    let sinceLastLean = 0;
-    while (tx < maxX - 18) {
-      const nearEnd = maxX - tx < 110;
-      const canLean = sinceLastLean > 1 && nearEnd && Math.random() < 0.55;
-      const bw = 24 + Math.random() * 26;
-      if (tx + bw > maxX) break;
-      const bh = 9 + Math.random() * 7;
-      const by = cabY - 6 - bh;
+    const maxX = cabX + cabW - 10;
+    const startX = cabX + 10;
+    const totalW = maxX - startX;
+    const count = 3;
+    const avgW = totalW / count;
+    let tx = startX;
+    for (let i = 0; i < count; i++) {
+      const bw = avgW * (0.78 + Math.random() * 0.16);
+      const bh = 13 + Math.random() * 6;
+      const by = cabY - 8 - bh;
       const b = rect(tx, by, bw, bh, 1);
-      if (canLean) {
-        const rot = 28 + Math.random() * 30; // 只往一个方向倒，靠在前面的书上
-        b.setAttribute("transform", `rotate(${rot} ${tx} ${by + bh})`);
-        shelfGroup.appendChild(b);
-        tx += bw * 0.55 + 4; // 倒下的书占地更宽，留够间距避免下一本穿过来
-        sinceLastLean = 0;
-      } else {
-        const rot = (Math.random() - 0.5) * 8;
-        b.setAttribute("transform", `rotate(${rot} ${tx + bw / 2} ${by + bh})`);
-        shelfGroup.appendChild(b);
-        tx += bw + 2 + Math.random() * 6;
-        sinceLastLean++;
-      }
+      const rot = (Math.random() - 0.5) * 9;
+      b.setAttribute("transform", `rotate(${rot} ${tx + bw / 2} ${by + bh})`);
+      shelfGroup.appendChild(b);
+      tx += avgW;
     }
   }
 
