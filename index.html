@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
 <title>nkmr_in_traces</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@300;400;600&display=swap" rel="stylesheet">
@@ -74,7 +75,10 @@
 <div class="search-overlay" id="searchOverlay"></div>
 
 <div class="interview-modal" id="interviewModal">
-  <div class="interview-modal-inner" id="interviewModalInner"></div>
+  <div class="interview-modal-frame">
+    <button class="interview-modal-close" id="interviewModalClose">×</button>
+    <div class="interview-modal-inner" id="interviewModalInner"></div>
+  </div>
 </div>
 
 <script src="js/geoblock.js"></script>

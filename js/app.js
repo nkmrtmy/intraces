@@ -193,7 +193,6 @@ const interviewModalInner = document.getElementById("interviewModalInner");
 
 function openInterviewModal(iv) {
   interviewModalInner.innerHTML = `
-    <button class="interview-modal-close" id="interviewModalClose">×</button>
     <div class="interview-modal-meta">${iv.date || ""}${iv.source ? " · " + escapeHtml(iv.source) : ""}</div>
     <h3 class="interview-modal-title">${escapeHtml(iv.title || "")}</h3>
     ${iv.title_zh ? `<div class="interview-modal-title-zh">${escapeHtml(iv.title_zh)}</div>` : ""}
@@ -201,12 +200,13 @@ function openInterviewModal(iv) {
     ${iv.url ? `<a class="interview-modal-link" href="${iv.url}" target="_blank" rel="noopener">跳转至出处网站（外链） →</a>` : ""}
   `;
   interviewModal.classList.add("open");
-  document.getElementById("interviewModalClose").addEventListener("click", closeInterviewModal);
 }
 
 function closeInterviewModal() {
   interviewModal.classList.remove("open");
 }
+
+document.getElementById("interviewModalClose").addEventListener("click", closeInterviewModal);
 
 interviewModal.addEventListener("click", (e) => {
   if (e.target.id === "interviewModal") closeInterviewModal();
