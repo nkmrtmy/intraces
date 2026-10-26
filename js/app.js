@@ -173,7 +173,7 @@ function renderDetail(dvd) {
   list.innerHTML = dvd.interviews && dvd.interviews.length
     ? dvd.interviews.map((iv, i) => `
         <div class="interview-list-item" data-idx="${i}">
-          <div class="list-no">no.${i + 1}</div>
+          <div class="list-no">ch.${String(i + 1).padStart(2, "0")}</div>
           <div class="meta">${iv.date || ""}${iv.source ? " · " + escapeHtml(iv.source) : ""}</div>
           <div class="title">${escapeHtml(iv.title || "（无标题）")}</div>
           ${iv.title_zh ? `<div class="title-zh">${escapeHtml(iv.title_zh)}</div>` : ""}
