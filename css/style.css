@@ -448,6 +448,16 @@ body.pre-reveal .stage { opacity: 0; pointer-events: none; }
   border-radius: 2px;
   cursor: pointer;
   transition: background 0.2s;
+  position: relative;
+}
+.interview-list-item .list-no {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--green-dim);
 }
 .interview-list-item:hover { background: rgba(255,255,255,0.09); }
 .interview-list-item .meta {

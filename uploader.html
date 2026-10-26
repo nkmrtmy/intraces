@@ -91,6 +91,8 @@
   .iv-item span { color: var(--ink-dim); }
   .hint { font-size: 11px; color: var(--ink-dim); }
   .folder-name { color: var(--accent); font-weight: 600; }
+  .para-count { margin-left: 8px; font-family: ui-monospace, Menlo, monospace; font-weight: 700; color: var(--ok); }
+  .para-count.mismatch { color: var(--err); }
   .divider { height: 1px; background: var(--border); margin: 18px 0; }
 
   /* ---------- 模式选择 ---------- */
@@ -282,11 +284,11 @@
 
       <div class="row2">
         <div>
-          <label>日语原文（每段换行）</label>
+          <label>日语原文（每段换行）<span class="para-count" id="ivJaCount">0</span></label>
           <textarea id="ivJa"></textarea>
         </div>
         <div>
-          <label>中文翻译（每段换行，与左边一一对应）</label>
+          <label>中文翻译（每段换行，与左边一一对应）<span class="para-count" id="ivZhCount">0</span></label>
           <textarea id="ivZh"></textarea>
         </div>
       </div>
@@ -642,7 +644,28 @@ document.getElementById("addInterviewBtn").addEventListener("click", () => {
   ["ivTitle", "ivTitleZh", "ivDate", "ivSource", "ivUrl", "ivJa", "ivZh"].forEach(
     (id) => (document.getElementById(id).value = "")
   );
+  updateParaCounts();
 });
+
+// ---------- 日/中段落数统计（一致=绿，不一致=红） ----------
+function countParas(text) {
+  return text.split("\n").filter((l) => l.trim() !== "").length;
+}
+function updateParaCounts() {
+  const ja = countParas(document.getElementById("ivJa").value);
+  const zh = countParas(document.getElementById("ivZh").value);
+  const jaEl = document.getElementById("ivJaCount");
+  const zhEl = document.getElementById("ivZhCount");
+  jaEl.textContent = ja;
+  zhEl.textContent = zh;
+  const mismatch = ja !== zh;
+  jaEl.classList.toggle("mismatch", mismatch);
+  zhEl.classList.toggle("mismatch", mismatch);
+}
+["ivJa", "ivZh"].forEach((id) => {
+  document.getElementById(id).addEventListener("input", updateParaCounts);
+});
+updateParaCounts();
 
 function renderIvList() {
   const box = document.getElementById("ivList");
