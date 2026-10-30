@@ -104,6 +104,9 @@
   }
   .mode-tabs input[type=radio] { accent-color: var(--accent); }
   .mode-tabs input[type=radio]:checked + span { color: var(--ink); font-weight: 600; }
+  #targetLookupInfo { font-size: 11.5px; margin-top: 6px; min-height: 16px; }
+  #targetLookupInfo.ok { color: var(--ok); }
+  #targetLookupInfo.warn { color: var(--err); }
   #uidLookupInfo { font-size: 11.5px; margin-top: 6px; min-height: 16px; }
   #uidLookupInfo.ok { color: var(--ok); }
   #uidLookupInfo.warn { color: var(--err); }
@@ -119,12 +122,19 @@
   .field-check input { accent-color: var(--accent); }
 
   /* ---------- 按模式隐藏区块 ---------- */
-  #deleteInterviewFields { display: none; }
+  #deleteInterviewFields, #moveTargetFields { display: none; }
   #formPanel[data-mode="deleteDisc"] #fullFormFields,
   #formPanel[data-mode="deleteDisc"] #interviewFields,
   #formPanel[data-mode="deleteInterview"] #fullFormFields,
-  #formPanel[data-mode="deleteInterview"] #interviewFields { display: none; }
-  #formPanel[data-mode="deleteInterview"] #deleteInterviewFields { display: block; }
+  #formPanel[data-mode="deleteInterview"] #interviewFields,
+  #formPanel[data-mode="moveInterview"] #fullFormFields,
+  #formPanel[data-mode="moveInterview"] #interviewFields { display: none; }
+  #formPanel[data-mode="deleteInterview"] #deleteInterviewFields,
+  #formPanel[data-mode="moveInterview"] #deleteInterviewFields,
+  #formPanel[data-mode="moveInterview"] #moveTargetFields { display: block; }
+  .iv-preview { margin-top: 8px; font-size: 12px; line-height: 1.7; color: var(--ink-dim); }
+  .iv-preview:empty { display: none; }
+  .iv-preview .ch { font-family: ui-monospace, Menlo, monospace; color: var(--accent); margin-right: 8px; }
 
   /* ---------- 碟片裁剪器 ---------- */
   .cropper-modal {
@@ -177,6 +187,7 @@
     <label><input type="radio" name="mode" value="edit"><span>修改碟片</span></label>
     <label><input type="radio" name="mode" value="deleteDisc"><span>删除碟片</span></label>
     <label><input type="radio" name="mode" value="deleteInterview"><span>删除采访</span></label>
+    <label><input type="radio" name="mode" value="moveInterview"><span>移动采访</span></label>
   </div>
 
   <label>碟片编号 (uid) *</label>
@@ -184,9 +195,17 @@
   <div class="hint" id="uidHintText"></div>
   <div id="uidLookupInfo"></div>
 
+  <div id="ivPreviewList" class="iv-preview"></div>
+
   <div id="deleteInterviewFields">
-    <label>要删除第几篇采访（按网页从上到下的顺序，多个用空格隔开，例如：1 3）</label>
+    <label id="ivIndexLabel">要删除第几篇采访（按网页从上到下的顺序，多个用空格隔开，例如：1 3）</label>
     <input type="text" id="deleteIvIndexes" placeholder="1 3">
+  </div>
+
+  <div id="moveTargetFields">
+    <label>移到哪张碟片（目标碟片编号）</label>
+    <input type="text" id="moveTargetUid" placeholder="例如 008">
+    <div id="targetLookupInfo"></div>
   </div>
 
   <div id="fullFormFields">
@@ -385,18 +404,20 @@ document.querySelectorAll(".fieldToggle").forEach((cb) => {
   cb.addEventListener("change", applyFieldDisabled);
 });
 
-const HEADINGS = { add: "新增碟片", edit: "修改碟片", deleteDisc: "删除碟片", deleteInterview: "删除采访" };
+const HEADINGS = { add: "新增碟片", edit: "修改碟片", deleteDisc: "删除碟片", deleteInterview: "删除采访", moveInterview: "移动采访" };
 const UID_HINTS = {
   add: "填一个尚未使用过的编号，提交后成为这张碟片的唯一编号",
   edit: "填已存在的编号，下面勾选要修改的项目，不勾选的保持不变",
   deleteDisc: "填已存在的编号，提交后这张碟片会被整个删除",
   deleteInterview: "填已存在的编号",
+  moveInterview: "填来源碟片（采访传错的那张）的编号",
 };
 const SUBMIT_LABELS = {
   add: "提交，写入网站数据",
   edit: "提交修改",
   deleteDisc: "确认删除这张碟片",
   deleteInterview: "确认删除所选采访",
+  moveInterview: "确认移动所选采访",
 };
 
 function applyModeUI() {
@@ -405,6 +426,9 @@ function applyModeUI() {
   document.getElementById("formHeading").textContent = HEADINGS[mode];
   document.getElementById("uidHintText") && (document.getElementById("uidHintText").textContent = UID_HINTS[mode]);
   document.getElementById("submitBtn").textContent = SUBMIT_LABELS[mode];
+  document.getElementById("ivIndexLabel").textContent = mode === "moveInterview"
+    ? "要移动第几篇采访（按网页从上到下的顺序，多个用空格隔开，例如：1 3）"
+    : "要删除第几篇采访（按网页从上到下的顺序，多个用空格隔开，例如：1 3）";
 
   const isEdit = mode === "edit";
   document.querySelectorAll(".field-check").forEach((el) => {
@@ -415,6 +439,8 @@ function applyModeUI() {
   });
   applyFieldDisabled();
   updateUidLookup();
+  updateTargetLookup();
+  renderIvPreview();
 }
 
 document.querySelectorAll('input[name="mode"]').forEach((r) => {
@@ -442,6 +468,42 @@ function updateUidLookup() {
   }
 }
 document.getElementById("uid").addEventListener("input", updateUidLookup);
+
+// 删除/移动采访时，列出该碟片现有采访，不用对着网页数序号
+function renderIvPreview() {
+  const box = document.getElementById("ivPreviewList");
+  box.textContent = "";
+  const mode = currentMode();
+  if (mode !== "deleteInterview" && mode !== "moveInterview") return;
+  const uid = document.getElementById("uid").value.trim();
+  const rec = dvdsData && dvdsData.find((d) => d.id === uid);
+  if (!rec) return;
+  (rec.interviews || []).forEach((iv, i) => {
+    const row = document.createElement("div");
+    const ch = document.createElement("span");
+    ch.className = "ch";
+    ch.textContent = "ch." + String(i + 1).padStart(2, "0");
+    row.appendChild(ch);
+    row.appendChild(document.createTextNode(iv.title_zh || iv.title || "（无标题）"));
+    box.appendChild(row);
+  });
+}
+document.getElementById("uid").addEventListener("input", renderIvPreview);
+
+function updateTargetLookup() {
+  const info = document.getElementById("targetLookupInfo");
+  const t = document.getElementById("moveTargetUid").value.trim();
+  if (currentMode() !== "moveInterview" || !t || !dvdsData) { info.textContent = ""; info.className = ""; return; }
+  const found = dvdsData.find((d) => d.id === t);
+  if (found) {
+    info.textContent = `✓ 找到：${found.role ? found.role + " / " : ""}${found.title}（${found.year}）`;
+    info.className = "ok";
+  } else {
+    info.textContent = "⚠ 未找到该编号，提交会被跳过";
+    info.className = "warn";
+  }
+}
+document.getElementById("moveTargetUid").addEventListener("input", updateTargetLookup);
 
 // ---------- 选择图片 ----------
 async function pickImageFile() {
@@ -732,6 +794,7 @@ function resetForm() {
   document.getElementById("year").value = "";
   document.getElementById("textPosition").value = "left";
   document.getElementById("deleteIvIndexes").value = "";
+  document.getElementById("moveTargetUid").value = "";
   clearFileState();
   applyModeUI();
   updatePreview();
@@ -854,6 +917,24 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
       uniqueNums.forEach((n) => record.interviews.splice(n - 1, 1));
       await saveJson(dataDir);
       showStatus(`已删除 uid=${uid} 的第 ${uniqueNums.slice().reverse().join("、")} 篇采访。记得去终端 git push。`, true);
+      resetForm();
+
+    } else if (mode === "moveInterview") {
+      const targetUid = document.getElementById("moveTargetUid").value.trim();
+      const tIdx = dvdsData.findIndex((d) => d.id === targetUid);
+      if (idx === -1 || tIdx === -1 || targetUid === uid) return; // 来源/目标不存在或相同，静默跳过
+      const source = dvdsData[idx];
+      const target = dvdsData[tIdx];
+      const raw = document.getElementById("deleteIvIndexes").value.trim();
+      const nums = raw.split(/\s+/).filter(Boolean).map(Number)
+        .filter((n) => Number.isInteger(n) && n >= 1 && n <= (source.interviews || []).length);
+      if (!nums.length) return;
+      const asc = [...new Set(nums)].sort((a, b) => a - b);
+      const moved = asc.map((n) => source.interviews[n - 1]); // 保持原有先后顺序
+      asc.slice().reverse().forEach((n) => source.interviews.splice(n - 1, 1));
+      target.interviews = [...(target.interviews || []), ...moved]; // 加到目标列表末尾
+      await saveJson(dataDir); // 删除和添加同一次保存
+      showStatus(`已把 uid=${uid} 的第 ${asc.join("、")} 篇采访移到 uid=${targetUid}。记得去终端 git push。`, true);
       resetForm();
     }
 
